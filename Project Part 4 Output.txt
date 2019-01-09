@@ -1,0 +1,946 @@
+SQL> --DBST 651
+SQL> --PROJECT - FINAL SUBMISSION
+SQL> --JUSTIN HUGHES
+SQL> --SET ECHO ON FOR THE SQL SCRIPT
+SQL> set echo on
+SQL> --All Drop Statements (Tables with Foreign Keys Dropped First)
+SQL> DROP VIEW Purchase_Orders;
+
+View PURCHASE_ORDERS dropped.
+
+SQL> DROP VIEW GSK_PRODUCTS;
+
+View GSK_PRODUCTS dropped.
+
+SQL> Drop SEQUENCE seq_custid;
+
+Sequence SEQ_CUSTID dropped.
+
+SQL> Drop SEQUENCE seq_ponumber;
+
+Sequence SEQ_PONUMBER dropped.
+
+SQL> DROP TRIGGER ORDERS_BEFORE_INSERT;
+
+Trigger ORDERS_BEFORE_INSERT dropped.
+
+SQL> DROP TRIGGER AUTO_CUSTID;
+
+Trigger AUTO_CUSTID dropped.
+
+SQL> DROP TRIGGER AUTO_ORDERID;
+
+Trigger AUTO_ORDERID dropped.
+
+SQL> DROP TABLE INVENTORY;
+
+Table INVENTORY dropped.
+
+SQL> DROP TABLE PO_CONTENTS;
+
+Table PO_CONTENTS dropped.
+
+SQL> DROP TABLE PRODUCTS;
+
+Table PRODUCTS dropped.
+
+SQL> DROP TABLE ORDERS;
+
+Table ORDERS dropped.
+
+SQL> DROP TABLE CUSTOMER;
+
+Table CUSTOMER dropped.
+
+SQL> --Create Statements for all 5 tables
+SQL> CREATE TABLE CUSTOMER (
+CUST_ID int NOT NULL PRIMARY KEY,
+CUST_NAME varchar(255) NOT NULL UNIQUE,
+CUST_ADDR varchar(255),
+CUST_CITY varchar(255),
+CUST_STATE varchar (2),
+CUST_ZIP int,
+CUST_PHONE int
+);
+
+Table CUSTOMER created.
+
+SQL> CREATE TABLE ORDERS (
+ORDER_ID int NOT NULL PRIMARY KEY,
+ORDER_DATE date,
+VENDOR_NAME varchar(255),
+CUST_ID int REFERENCES CUSTOMER(CUST_ID)
+);
+
+Table ORDERS created.
+
+SQL> CREATE TABLE PO_CONTENTS (
+VENDOR_ITEM varchar(255) NOT NULL,
+PACK_SIZE int NOT NULL,
+PACK_PRICE NUMBER(6,2),
+QTY_ORDERED int NOT NULL,
+ORDER_ID int REFERENCES ORDERS(ORDER_ID),
+CONSTRAINT PK_PURCHASEORDER PRIMARY KEY (ORDER_ID,VENDOR_ITEM)
+);
+
+Table PO_CONTENTS created.
+
+SQL> --Holds Generic Information for Products
+SQL> CREATE TABLE PRODUCTS (
+PRODUCT_ID varchar (255) NOT NULL PRIMARY KEY,
+PRODUCT_NAME varchar(255) NOT NULL UNIQUE,
+CPT_CODE int,
+MANUFACTURER varchar (255) NOT NULL,
+FORM varchar(255)
+);
+
+Table PRODUCTS created.
+
+SQL> --Holds Specific Information for Inventory
+SQL> CREATE TABLE INVENTORY (
+NDC_NUM int NOT NULL,
+QTYONHAND int,
+REORDER_POINT int,
+LOT_NUM varchar(255),
+PRODUCT_ID varchar (255) REFERENCES PRODUCTS(PRODUCT_ID),
+ORDER_ID int REFERENCES ORDERS(ORDER_ID),
+PRODUCT_NAME varchar(255) REFERENCES PRODUCTS(PRODUCT_NAME),
+CONSTRAINT PK_INVITEM PRIMARY KEY (ORDER_ID,NDC_NUM,LOT_NUM)
+);
+
+Table INVENTORY created.
+
+SQL> --Creating Indexes for Foreign and Natural Keys, and anything containing a name
+SQL> CREATE INDEX VENDORNAME
+ON ORDERS(VENDOR_NAME);
+
+Index VENDORNAME created.
+
+SQL> CREATE INDEX PURCHASEORDER
+ON PO_CONTENTS(ORDER_ID);
+
+Index PURCHASEORDER created.
+
+SQL> CREATE INDEX MANUFACTURER
+ON PRODUCTS(MANUFACTURER);
+
+Index MANUFACTURER created.
+
+SQL> CREATE INDEX NDCNUM
+ON INVENTORY(NDC_NUM);
+
+Index NDCNUM created.
+
+SQL> CREATE INDEX INVPRODUCTNAME
+ON INVENTORY(PRODUCT_NAME);
+
+Index INVPRODUCTNAME created.
+
+SQL> CREATE INDEX LOTNUM
+ON INVENTORY(LOT_NUM);
+
+Index LOTNUM created.
+
+SQL> CREATE INDEX ONHANDINVENTORY
+ON INVENTORY(NDC_NUM,QTYONHAND);
+
+Index ONHANDINVENTORY created.
+
+SQL> -- View to allow customer to search all products from a single manufacturer
+SQL> CREATE VIEW GSK_PRODUCTS AS
+SELECT DISTINCT MANUFACTURER,PRODUCT_NAME AS PRODUCTNAME
+FROM PRODUCTS
+WHERE MANUFACTURER = 'GSK';
+
+View GSK_PRODUCTS created.
+
+SQL> --View to allows customer to search all PO's and contents placed for a particular customer
+SQL> CREATE VIEW Purchase_Orders AS
+SELECT DISTINCT CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE
+FROM CUSTOMER
+INNER JOIN ORDERS ON ORDERS.CUST_ID = CUSTOMER.CUST_ID;
+
+View PURCHASE_ORDERS created.
+
+SQL> --Sequence for Customer ID
+SQL> CREATE SEQUENCE seq_custid
+MINVALUE 1
+START WITH 1
+INCREMENT BY 1
+CACHE 10;
+
+Sequence SEQ_CUSTID created.
+
+SQL> --Sequence for Order Number
+SQL> CREATE SEQUENCE seq_ponumber
+MINVALUE 1
+START WITH 1
+INCREMENT BY 1
+CACHE 10;
+
+Sequence SEQ_PONUMBER created.
+
+SQL> --Trigger to Auto-Increment Customer ID
+SQL> CREATE TRIGGER AUTO_CUSTID
+BEFORE INSERT ON CUSTOMER
+FOR EACH ROW 
+
+BEGIN
+  SELECT seq_custid.NEXTVAL
+  INTO :new.cust_id
+  FROM dual;
+END;
+/
+
+Trigger AUTO_CUSTID compiled
+
+SQL> --Trigger to Auto-Increment Order ID
+SQL> CREATE TRIGGER AUTO_ORDERID
+BEFORE INSERT ON ORDERS
+FOR EACH ROW 
+
+BEGIN
+  SELECT seq_ponumber.NEXTVAL
+  INTO :new.order_id
+  FROM dual;
+END;
+/
+
+Trigger AUTO_ORDERID compiled
+
+SQL> --Trigger to update ORDER-DATE field in the ORDERS column when creating a new PO
+SQL> CREATE TRIGGER ORDERS_BEFORE_INSERT
+BEFORE INSERT
+  ON ORDERS
+  FOR EACH ROW
+  
+BEGIN
+--Update ORDER-DATE field to current system date
+:new.ORDER_DATE := sysdate;
+
+end;
+/
+
+Trigger ORDERS_BEFORE_INSERT compiled
+
+SQL> --Trigger to updates the Customer ID and Customer name in Orders Table when the Customer table is updated
+SQL> CREATE TRIGGER CUSTOMER_UPDATE
+AFTER UPDATE 
+ON CUSTOMER
+FOR EACH ROW
+
+BEGIN
+UPDATE ORDERS
+SET CUST_ID = :new.CUST_ID
+WHERE CUST_ID = :old.CUST_ID;
+
+END;
+/
+
+Trigger CUSTOMER_UPDATE compiled
+
+SQL> --CHECK CONTENTS AND AVAILABILITY OF TABLES
+SQL> SELECT * FROM CUSTOMER;
+
+no rows selected
+
+
+SQL> SELECT * FROM ORDERS;
+
+no rows selected
+
+
+SQL> SELECT * FROM PO_CONTENTS;
+
+no rows selected
+
+
+SQL> SELECT * FROM PRODUCTS;
+
+no rows selected
+
+
+SQL> SELECT * FROM INVENTORY;
+
+no rows selected
+
+
+SQL> --Insert Statements for All Tables
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Heal All','948 Clopper Road','Gaithersburg', 'MD','20878','1112223333');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Dinosaurs and Associates','599 West State Street','Doylestown', 'PA','18901','2154892065');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Lighter Medical','2811 Linkhorne Drive','Lynchburg', 'VA','24503','4343841582');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Oldies Medical Group','3411 Olandwood Court','Olney', 'MD','20832','3017745265');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Greatest View Medical','3456 Bethlehem Pike','Souderton', 'PA','18964','2157216400');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('2nd Choice Family Practice','6165 Fuller Court','Alexandria', 'VA','22310','7039249264');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Semi Urgent Care','911 That Hurts Lane','Rockville', 'MD','20850','1234567890');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Ironclad Medical','239 Lafayette Street','Newark', 'NJ','07105','9736905544');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Yellowbrick Road Village','1923 E Joyce Blvd','Fayetteville', 'AR','72703','4796958000');
+
+1 row inserted.
+
+SQL> INSERT INTO CUSTOMER (CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP,CUST_PHONE) VALUES ('Home Sweet Home','7340 Westmore Road','Rockville', 'MD','20850','3013545082');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (1,'1-DEC-2017','FFF');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (2,'4-OCT-2015','FFF');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (3,'19-JUL-2017','ANDA');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (4,'10-DEC-2017','CARDINAL');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (5,'15-JAN-2017','VAXSERVE');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (6,'10-DEC-2017','FFF');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (6,'10-DEC-2017','ANDA');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (8,'15-SEP-2016','ANDA');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (2,'11-NOV-2017','FFF');
+
+1 row inserted.
+
+SQL> INSERT INTO ORDERS (CUST_ID,ORDER_DATE,VENDOR_NAME) VALUES (10,'9-DEC-2017','PFIZER');
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (1,'FLUZONEV-FFF',10,123.10,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (2,'BOOSTV-FFF',10,85.42,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (2,'ADHAVRIXS-FFF',10,90.42,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (2,'FLUZONEV-FFF',10,123.10,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (3,'GARD9V-ANDA',10,112.47,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (3,'ADHAVRIXS-ANDA',10,90.42,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (4,'MENACTRAV-CARDINAL',5,48.22,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (5,'FLUZONEV-VXS',10,137.90,3);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (6,'PEDENGBS-FFF',10,242.11,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (6,'PEDHAVRIXS-FFF',10,172.11,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (7,'BOOSTV-ANDA',10,85.42,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (8,'MMRV-ANDA',10,93.24,2);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (8,'GARD9V-ANDA',10,112.47,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (9,'GARD9V-FFF',10,112.47,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PO_CONTENTS (ORDER_ID,VENDOR_ITEM,PACK_SIZE,PACK_PRICE,QTY_ORDERED) VALUES (10,'PREV13-PFZ',10,758.92,1);
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('FLUZONE_Q_0417_V','Fluzone Quadrivalent (IIV4) Vial 2017-2018',90686,'Sanofi','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('BOOSTRIX_0842_V','Boostrix (TdaP) Vial',90715,'GSK','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('PREVNAR_13_1971_S','Prevnar 13 (PCV 13)',90670,'Pfizer','Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('MENACTRA_0589_V','Menactra (MCV4) Vial',90734,'Sanofi','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('HAVRIX_0826_S','Havrix Adult 1,440 UNITS/ML Syringe',90632,'GSK','Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('GARDASIL_9_4119_V','Gardasil 9 (HPV9) Vial',90651,'Merck','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('HAVRIX_0825_S','Havrix Pediatric 720 UNITS/0.5 ML Syringe',90633,'GSK','Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('KINRIX_0812_V','Kinrix (DTaP IPV) Vial',90696,'GSK','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('M_M_R_II_4681_V', 'MMR II Vial',90707,'Merck','Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO PRODUCTS (PRODUCT_ID,PRODUCT_NAME,CPT_CODE,MANUFACTURER,FORM) VALUES ('ENGERIX_B_0820_S', 'Engerix-B Pediatric 10 mcg/0.5 ml Syringe', 90744,'GSK','Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (1,49281041788,'AFLU424',9,4,'FLUZONE_Q_0417_V','Fluzone Quadrivalent (IIV4) Vial 2017-2018');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (2,49281041788,'AFLU424',7,4,'FLUZONE_Q_0417_V','Fluzone Quadrivalent (IIV4) Vial 2017-2018');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (2,58160084211,'B741K',3,4,'BOOSTRIX_0842_V','Boostrix (TdaP) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (2,58160082634,'AJRKJL4',6,4,'HAVRIX_0826_S','Havrix Adult 1,440 UNITS/ML Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (3,00006411903,'HPV8349',5,4,'GARDASIL_9_4119_V','Gardasil 9 (HPV9) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (3,58160082634,'AJRKJL4',10,4,'HAVRIX_0826_S','Havrix Adult 1,440 UNITS/ML Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (4,49281058905,'1561M',4,3,'MENACTRA_0589_V','Menactra (MCV4) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (5,49281041788,'AFLU424',9,4,'FLUZONE_Q_0417_V','Fluzone Quadrivalent (IIV4) Vial 2017-2018');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (6,58160082052,'JK19841',5,7,'ENGERIX_B_0820_S', 'Engerix-B Pediatric 10 mcg/0.5 ml Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (6,49281041788,'AFLU424',9,4,'HAVRIX_0825_S','Havrix Pediatric 720 UNITS/0.5 ML Syringe');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (7,58160084211,'B741LF',9,4,'BOOSTRIX_0842_V','Boostrix (TdaP) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (8,00006468100,'AFLU424',9,4,'M_M_R_II_4681_V', 'MMR II Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (8,00006411903,'HPV8349',2,4,'GARDASIL_9_4119_V','Gardasil 9 (HPV9) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (9,00006411903,'HPV8349',1,4,'GARDASIL_9_4119_V','Gardasil 9 (HPV9) Vial');
+
+1 row inserted.
+
+SQL> INSERT INTO INVENTORY (ORDER_ID,NDC_NUM,LOT_NUM,QTYONHAND,REORDER_POINT,PRODUCT_ID,PRODUCT_NAME) VALUES (10,49281041788,'074AF56',8,4,'PREVNAR_13_1971_S','Prevnar 13 (PCV 13)');
+
+1 row inserted.
+
+SQL> -- 20 Queries
+SQL> --1) Select all columns and all rows from one table.
+SQL> SELECT * FROM PRODUCTS;
+
+PRODUCT_ID                                                                                                                                                                                                                                                      PRODUCT_NAME                                                                                                                                                                                                                                                      CPT_CODE MANUFACTURER                                                                                                                                                                                                                                                    FORM                                                                                                                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+FLUZONE_Q_0417_V                                                                                                                                                                                                                                                Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                           90686 Sanofi                                                                                                                                                                                                                                                          Vial                                                                                                                                                                                                                                                           
+BOOSTRIX_0842_V                                                                                                                                                                                                                                                 Boostrix (TdaP) Vial                                                                                                                                                                                                                                                 90715 GSK                                                                                                                                                                                                                                                             Vial                                                                                                                                                                                                                                                           
+PREVNAR_13_1971_S                                                                                                                                                                                                                                               Prevnar 13 (PCV 13)                                                                                                                                                                                                                                                  90670 Pfizer                                                                                                                                                                                                                                                          Syringe                                                                                                                                                                                                                                                        
+MENACTRA_0589_V                                                                                                                                                                                                                                                 Menactra (MCV4) Vial                                                                                                                                                                                                                                                 90734 Sanofi                                                                                                                                                                                                                                                          Vial                                                                                                                                                                                                                                                           
+HAVRIX_0826_S                                                                                                                                                                                                                                                   Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                                  90632 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+GARDASIL_9_4119_V                                                                                                                                                                                                                                               Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                               90651 Merck                                                                                                                                                                                                                                                           Vial                                                                                                                                                                                                                                                           
+HAVRIX_0825_S                                                                                                                                                                                                                                                   Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                            90633 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+KINRIX_0812_V                                                                                                                                                                                                                                                   Kinrix (DTaP IPV) Vial                                                                                                                                                                                                                                               90696 GSK                                                                                                                                                                                                                                                             Vial                                                                                                                                                                                                                                                           
+M_M_R_II_4681_V                                                                                                                                                                                                                                                 MMR II Vial                                                                                                                                                                                                                                                          90707 Merck                                                                                                                                                                                                                                                           Vial                                                                                                                                                                                                                                                           
+ENGERIX_B_0820_S                                                                                                                                                                                                                                                Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                            90744 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+
+ 10 rows selected 
+
+SQL> --2) Select 5 columns and all rows from one table.
+SQL> SELECT CUST_NAME,CUST_ADDR,CUST_CITY,CUST_STATE,CUST_ZIP FROM CUSTOMER;
+
+CUST_NAME                                                                                                                                                                                                                                                       CUST_ADDR                                                                                                                                                                                                                                                       CUST_CITY                                                                                                                                                                                                                                                       CU   CUST_ZIP
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- -- ----------
+Heal All                                                                                                                                                                                                                                                        948 Clopper Road                                                                                                                                                                                                                                                Gaithersburg                                                                                                                                                                                                                                                    MD      20878
+Dinosaurs and Associates                                                                                                                                                                                                                                        599 West State Street                                                                                                                                                                                                                                           Doylestown                                                                                                                                                                                                                                                      PA      18901
+Lighter Medical                                                                                                                                                                                                                                                 2811 Linkhorne Drive                                                                                                                                                                                                                                            Lynchburg                                                                                                                                                                                                                                                       VA      24503
+Oldies Medical Group                                                                                                                                                                                                                                            3411 Olandwood Court                                                                                                                                                                                                                                            Olney                                                                                                                                                                                                                                                           MD      20832
+Greatest View Medical                                                                                                                                                                                                                                           3456 Bethlehem Pike                                                                                                                                                                                                                                             Souderton                                                                                                                                                                                                                                                       PA      18964
+2nd Choice Family Practice                                                                                                                                                                                                                                      6165 Fuller Court                                                                                                                                                                                                                                               Alexandria                                                                                                                                                                                                                                                      VA      22310
+Semi Urgent Care                                                                                                                                                                                                                                                911 That Hurts Lane                                                                                                                                                                                                                                             Rockville                                                                                                                                                                                                                                                       MD      20850
+Ironclad Medical                                                                                                                                                                                                                                                239 Lafayette Street                                                                                                                                                                                                                                            Newark                                                                                                                                                                                                                                                          NJ       7105
+Yellowbrick Road Village                                                                                                                                                                                                                                        1923 E Joyce Blvd                                                                                                                                                                                                                                               Fayetteville                                                                                                                                                                                                                                                    AR      72703
+Home Sweet Home                                                                                                                                                                                                                                                 7340 Westmore Road                                                                                                                                                                                                                                              Rockville                                                                                                                                                                                                                                                       MD      20850
+
+ 10 rows selected 
+
+SQL> --3) Select all columns and all rows from one view.
+SQL> SELECT * FROM GSK_PRODUCTS;
+
+MANUFACTURER                                                                                                                                                                                                                                                    PRODUCTNAME                                                                                                                                                                                                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+GSK                                                                                                                                                                                                                                                             Boostrix (TdaP) Vial                                                                                                                                                                                                                                           
+GSK                                                                                                                                                                                                                                                             Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                            
+GSK                                                                                                                                                                                                                                                             Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                      
+GSK                                                                                                                                                                                                                                                             Kinrix (DTaP IPV) Vial                                                                                                                                                                                                                                         
+GSK                                                                                                                                                                                                                                                             Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                      
+
+SQL> --4) Using a join on 2 tables, select all columns and all rows from the tables without the use of a Cartesian product. 
+SQL> SELECT ORDERS.*, PO_CONTENTS.*
+FROM ORDERS
+JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = ORDERS.ORDER_ID;
+
+  ORDER_ID ORDER_DATE VENDOR_NAME                                                                                                                                                                                                                                                        CUST_ID VENDOR_ITEM                                                                                                                                                                                                                                                      PACK_SIZE PACK_PRICE                             QTY_ORDERED   ORDER_ID
+---------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ---------- --------------------------------------- ----------
+         1 11-DEC-17  FFF                                                                                                                                                                                                                                                                      1 FLUZONEV-FFF                                                                                                                                                                                                                                                            10      123.1                                       1          1
+         2 11-DEC-17  FFF                                                                                                                                                                                                                                                                      2 BOOSTV-FFF                                                                                                                                                                                                                                                              10      85.42                                       1          2
+         2 11-DEC-17  FFF                                                                                                                                                                                                                                                                      2 ADHAVRIXS-FFF                                                                                                                                                                                                                                                           10      90.42                                       1          2
+         2 11-DEC-17  FFF                                                                                                                                                                                                                                                                      2 FLUZONEV-FFF                                                                                                                                                                                                                                                            10      123.1                                       1          2
+         3 11-DEC-17  ANDA                                                                                                                                                                                                                                                                     3 GARD9V-ANDA                                                                                                                                                                                                                                                             10     112.47                                       1          3
+         3 11-DEC-17  ANDA                                                                                                                                                                                                                                                                     3 ADHAVRIXS-ANDA                                                                                                                                                                                                                                                          10      90.42                                       1          3
+         4 11-DEC-17  CARDINAL                                                                                                                                                                                                                                                                 4 MENACTRAV-CARDINAL                                                                                                                                                                                                                                                       5      48.22                                       1          4
+         5 11-DEC-17  VAXSERVE                                                                                                                                                                                                                                                                 5 FLUZONEV-VXS                                                                                                                                                                                                                                                            10      137.9                                       3          5
+         6 11-DEC-17  FFF                                                                                                                                                                                                                                                                      6 PEDENGBS-FFF                                                                                                                                                                                                                                                            10     242.11                                       1          6
+         6 11-DEC-17  FFF                                                                                                                                                                                                                                                                      6 PEDHAVRIXS-FFF                                                                                                                                                                                                                                                          10     172.11                                       1          6
+         7 11-DEC-17  ANDA                                                                                                                                                                                                                                                                     6 BOOSTV-ANDA                                                                                                                                                                                                                                                             10      85.42                                       1          7
+
+  ORDER_ID ORDER_DATE VENDOR_NAME                                                                                                                                                                                                                                                        CUST_ID VENDOR_ITEM                                                                                                                                                                                                                                                      PACK_SIZE PACK_PRICE                             QTY_ORDERED   ORDER_ID
+---------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ---------- --------------------------------------- ----------
+         8 11-DEC-17  ANDA                                                                                                                                                                                                                                                                     8 MMRV-ANDA                                                                                                                                                                                                                                                               10      93.24                                       2          8
+         8 11-DEC-17  ANDA                                                                                                                                                                                                                                                                     8 GARD9V-ANDA                                                                                                                                                                                                                                                             10     112.47                                       1          8
+         9 11-DEC-17  FFF                                                                                                                                                                                                                                                                      2 GARD9V-FFF                                                                                                                                                                                                                                                              10     112.47                                       1          9
+        10 11-DEC-17  PFIZER                                                                                                                                                                                                                                                                  10 PREV13-PFZ                                                                                                                                                                                                                                                              10     758.92                                       1         10
+
+ 15 rows selected 
+
+SQL> --5) Select and order data retrieved from one table.
+SQL> SELECT * FROM PRODUCTS
+ORDER BY PRODUCT_NAME;
+
+PRODUCT_ID                                                                                                                                                                                                                                                      PRODUCT_NAME                                                                                                                                                                                                                                                      CPT_CODE MANUFACTURER                                                                                                                                                                                                                                                    FORM                                                                                                                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+BOOSTRIX_0842_V                                                                                                                                                                                                                                                 Boostrix (TdaP) Vial                                                                                                                                                                                                                                                 90715 GSK                                                                                                                                                                                                                                                             Vial                                                                                                                                                                                                                                                           
+ENGERIX_B_0820_S                                                                                                                                                                                                                                                Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                            90744 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+FLUZONE_Q_0417_V                                                                                                                                                                                                                                                Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                           90686 Sanofi                                                                                                                                                                                                                                                          Vial                                                                                                                                                                                                                                                           
+GARDASIL_9_4119_V                                                                                                                                                                                                                                               Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                               90651 Merck                                                                                                                                                                                                                                                           Vial                                                                                                                                                                                                                                                           
+HAVRIX_0826_S                                                                                                                                                                                                                                                   Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                                  90632 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+HAVRIX_0825_S                                                                                                                                                                                                                                                   Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                            90633 GSK                                                                                                                                                                                                                                                             Syringe                                                                                                                                                                                                                                                        
+KINRIX_0812_V                                                                                                                                                                                                                                                   Kinrix (DTaP IPV) Vial                                                                                                                                                                                                                                               90696 GSK                                                                                                                                                                                                                                                             Vial                                                                                                                                                                                                                                                           
+M_M_R_II_4681_V                                                                                                                                                                                                                                                 MMR II Vial                                                                                                                                                                                                                                                          90707 Merck                                                                                                                                                                                                                                                           Vial                                                                                                                                                                                                                                                           
+MENACTRA_0589_V                                                                                                                                                                                                                                                 Menactra (MCV4) Vial                                                                                                                                                                                                                                                 90734 Sanofi                                                                                                                                                                                                                                                          Vial                                                                                                                                                                                                                                                           
+PREVNAR_13_1971_S                                                                                                                                                                                                                                               Prevnar 13 (PCV 13)                                                                                                                                                                                                                                                  90670 Pfizer                                                                                                                                                                                                                                                          Syringe                                                                                                                                                                                                                                                        
+
+ 10 rows selected 
+
+SQL> --6) Using a join on 3 tables, select 5 columns from the 3 tables. Use syntax that would limit the output to 10 rows.  
+SQL> SELECT CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE,PO_CONTENTS.VENDOR_ITEM,PO_CONTENTS.QTY_ORDERED
+FROM CUSTOMER
+	INNER JOIN ORDERS ON ORDERS.CUST_ID = CUSTOMER.CUST_ID
+	INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = ORDERS.ORDER_ID
+ORDER BY CUSTOMER.CUST_NAME DESC
+FETCH FIRST 10 ROWS ONLY;
+
+CUST_NAME                                                                                                                                                                                                                                                         ORDER_ID ORDER_DATE VENDOR_ITEM                                                                                                                                                                                                                                                                                 QTY_ORDERED
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ---------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------
+Oldies Medical Group                                                                                                                                                                                                                                                     4 11-DEC-17  MENACTRAV-CARDINAL                                                                                                                                                                                                                                                                                    1
+Lighter Medical                                                                                                                                                                                                                                                          3 11-DEC-17  GARD9V-ANDA                                                                                                                                                                                                                                                                                           1
+Lighter Medical                                                                                                                                                                                                                                                          3 11-DEC-17  ADHAVRIXS-ANDA                                                                                                                                                                                                                                                                                        1
+Ironclad Medical                                                                                                                                                                                                                                                         8 11-DEC-17  MMRV-ANDA                                                                                                                                                                                                                                                                                             2
+Ironclad Medical                                                                                                                                                                                                                                                         8 11-DEC-17  GARD9V-ANDA                                                                                                                                                                                                                                                                                           1
+Home Sweet Home                                                                                                                                                                                                                                                         10 11-DEC-17  PREV13-PFZ                                                                                                                                                                                                                                                                                            1
+Heal All                                                                                                                                                                                                                                                                 1 11-DEC-17  FLUZONEV-FFF                                                                                                                                                                                                                                                                                          1
+Greatest View Medical                                                                                                                                                                                                                                                    5 11-DEC-17  FLUZONEV-VXS                                                                                                                                                                                                                                                                                          3
+Dinosaurs and Associates                                                                                                                                                                                                                                                 2 11-DEC-17  BOOSTV-FFF                                                                                                                                                                                                                                                                                            1
+Dinosaurs and Associates                                                                                                                                                                                                                                                 2 11-DEC-17  FLUZONEV-FFF                                                                                                                                                                                                                                                                                          1
+
+ 10 rows selected 
+
+SQL> --7) Select distinct rows using joins on 3 tables. 
+SQL> SELECT DISTINCT PO_CONTENTS.VENDOR_ITEM AS "Distinct Vendor Items", CUSTOMER.CUST_NAME,ORDERS.ORDER_DATE
+from PO_CONTENTS
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID;
+
+Distinct Vendor Items                                                                                                                                                                                                                                           CUST_NAME                                                                                                                                                                                                                                                       ORDER_DATE
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+FLUZONEV-FFF                                                                                                                                                                                                                                                    Dinosaurs and Associates                                                                                                                                                                                                                                        11-DEC-17 
+ADHAVRIXS-FFF                                                                                                                                                                                                                                                   Dinosaurs and Associates                                                                                                                                                                                                                                        11-DEC-17 
+BOOSTV-ANDA                                                                                                                                                                                                                                                     2nd Choice Family Practice                                                                                                                                                                                                                                      11-DEC-17 
+FLUZONEV-FFF                                                                                                                                                                                                                                                    Heal All                                                                                                                                                                                                                                                        11-DEC-17 
+BOOSTV-FFF                                                                                                                                                                                                                                                      Dinosaurs and Associates                                                                                                                                                                                                                                        11-DEC-17 
+GARD9V-FFF                                                                                                                                                                                                                                                      Dinosaurs and Associates                                                                                                                                                                                                                                        11-DEC-17 
+ADHAVRIXS-ANDA                                                                                                                                                                                                                                                  Lighter Medical                                                                                                                                                                                                                                                 11-DEC-17 
+FLUZONEV-VXS                                                                                                                                                                                                                                                    Greatest View Medical                                                                                                                                                                                                                                           11-DEC-17 
+PEDENGBS-FFF                                                                                                                                                                                                                                                    2nd Choice Family Practice                                                                                                                                                                                                                                      11-DEC-17 
+GARD9V-ANDA                                                                                                                                                                                                                                                     Ironclad Medical                                                                                                                                                                                                                                                11-DEC-17 
+GARD9V-ANDA                                                                                                                                                                                                                                                     Lighter Medical                                                                                                                                                                                                                                                 11-DEC-17 
+
+Distinct Vendor Items                                                                                                                                                                                                                                           CUST_NAME                                                                                                                                                                                                                                                       ORDER_DATE
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+MENACTRAV-CARDINAL                                                                                                                                                                                                                                              Oldies Medical Group                                                                                                                                                                                                                                            11-DEC-17 
+PREV13-PFZ                                                                                                                                                                                                                                                      Home Sweet Home                                                                                                                                                                                                                                                 11-DEC-17 
+PEDHAVRIXS-FFF                                                                                                                                                                                                                                                  2nd Choice Family Practice                                                                                                                                                                                                                                      11-DEC-17 
+MMRV-ANDA                                                                                                                                                                                                                                                       Ironclad Medical                                                                                                                                                                                                                                                11-DEC-17 
+
+ 15 rows selected 
+
+SQL> --8) Use GROUP BY & HAVING in a select statement using one or more tables.
+SQL> SELECT ORDERS.VENDOR_NAME, PO_CONTENTS.VENDOR_ITEM,PO_CONTENTS.PACK_PRICE
+FROM ORDERS
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = ORDERS.ORDER_ID
+GROUP BY ORDERS.VENDOR_NAME, PO_CONTENTS.VENDOR_ITEM,PO_CONTENTS.PACK_PRICE
+HAVING PACK_PRICE > 100;
+
+VENDOR_NAME                                                                                                                                                                                                                                                     VENDOR_ITEM                                                                                                                                                                                                                                                     PACK_PRICE
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+PFIZER                                                                                                                                                                                                                                                          PREV13-PFZ                                                                                                                                                                                                                                                          758.92
+VAXSERVE                                                                                                                                                                                                                                                        FLUZONEV-VXS                                                                                                                                                                                                                                                         137.9
+FFF                                                                                                                                                                                                                                                             FLUZONEV-FFF                                                                                                                                                                                                                                                         123.1
+FFF                                                                                                                                                                                                                                                             PEDENGBS-FFF                                                                                                                                                                                                                                                        242.11
+ANDA                                                                                                                                                                                                                                                            GARD9V-ANDA                                                                                                                                                                                                                                                         112.47
+FFF                                                                                                                                                                                                                                                             PEDHAVRIXS-FFF                                                                                                                                                                                                                                                      172.11
+FFF                                                                                                                                                                                                                                                             GARD9V-FFF                                                                                                                                                                                                                                                          112.47
+
+ 7 rows selected 
+
+SQL> --9) Use IN clause to select data from one or more tables.
+SQL> SELECT CUST_NAME AS "Customers in Maryland", CUST_ADDR,CUST_CITY,CUST_STATE
+FROM CUSTOMER
+WHERE CUST_STATE IN ('MD');
+
+Customers in Maryland                                                                                                                                                                                                                                           CUST_ADDR                                                                                                                                                                                                                                                       CUST_CITY                                                                                                                                                                                                                                                       CU
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --
+Heal All                                                                                                                                                                                                                                                        948 Clopper Road                                                                                                                                                                                                                                                Gaithersburg                                                                                                                                                                                                                                                    MD
+Oldies Medical Group                                                                                                                                                                                                                                            3411 Olandwood Court                                                                                                                                                                                                                                            Olney                                                                                                                                                                                                                                                           MD
+Semi Urgent Care                                                                                                                                                                                                                                                911 That Hurts Lane                                                                                                                                                                                                                                             Rockville                                                                                                                                                                                                                                                       MD
+Home Sweet Home                                                                                                                                                                                                                                                 7340 Westmore Road                                                                                                                                                                                                                                              Rockville                                                                                                                                                                                                                                                       MD
+
+SQL> --10)Select length of one column from one table (use LENGTH function).
+SQL> SELECT LENGTH(CUST_NAME) FROM CUSTOMER;
+
+                      LENGTH(CUST_NAME)
+---------------------------------------
+                                     26
+                                     24
+                                     21
+                                      8
+                                     15
+                                     16
+                                     15
+                                     20
+                                     16
+                                     24
+
+ 10 rows selected 
+
+SQL> --11) Use the SQL DELETE statement to delete one record from one table. Add select statements to demonstrate the table contents before and after the DELETE statement. Make sure to use ROLLBACK afterwards so that the data will not be physically removed.
+SQL> --SAVEPOINT AND TABLE BEFORE:
+SQL> SAVEPOINT SQL_BYEBYE;
+SAVEPOINT SQL_BYEBYE
+SQL> SELECT PRODUCT_ID,PRODUCT_NAME FROM PRODUCTS;
+
+PRODUCT_ID                                                                                                                                                                                                                                                      PRODUCT_NAME                                                                                                                                                                                                                                                  
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+FLUZONE_Q_0417_V                                                                                                                                                                                                                                                Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                     
+BOOSTRIX_0842_V                                                                                                                                                                                                                                                 Boostrix (TdaP) Vial                                                                                                                                                                                                                                           
+PREVNAR_13_1971_S                                                                                                                                                                                                                                               Prevnar 13 (PCV 13)                                                                                                                                                                                                                                            
+MENACTRA_0589_V                                                                                                                                                                                                                                                 Menactra (MCV4) Vial                                                                                                                                                                                                                                           
+HAVRIX_0826_S                                                                                                                                                                                                                                                   Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                            
+GARDASIL_9_4119_V                                                                                                                                                                                                                                               Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                         
+HAVRIX_0825_S                                                                                                                                                                                                                                                   Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                      
+KINRIX_0812_V                                                                                                                                                                                                                                                   Kinrix (DTaP IPV) Vial                                                                                                                                                                                                                                         
+M_M_R_II_4681_V                                                                                                                                                                                                                                                 MMR II Vial                                                                                                                                                                                                                                                    
+ENGERIX_B_0820_S                                                                                                                                                                                                                                                Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                      
+
+ 10 rows selected 
+
+SQL> --DELETE QUERY
+SQL> DELETE FROM PRODUCTS WHERE PRODUCT_ID = 'KINRIX_0812_V';
+
+1 row deleted.
+
+SQL> --TABLE AFTER:
+SQL> SELECT PRODUCT_ID,PRODUCT_NAME FROM PRODUCTS;
+
+PRODUCT_ID                                                                                                                                                                                                                                                      PRODUCT_NAME                                                                                                                                                                                                                                                  
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+FLUZONE_Q_0417_V                                                                                                                                                                                                                                                Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                     
+BOOSTRIX_0842_V                                                                                                                                                                                                                                                 Boostrix (TdaP) Vial                                                                                                                                                                                                                                           
+PREVNAR_13_1971_S                                                                                                                                                                                                                                               Prevnar 13 (PCV 13)                                                                                                                                                                                                                                            
+MENACTRA_0589_V                                                                                                                                                                                                                                                 Menactra (MCV4) Vial                                                                                                                                                                                                                                           
+HAVRIX_0826_S                                                                                                                                                                                                                                                   Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                            
+GARDASIL_9_4119_V                                                                                                                                                                                                                                               Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                         
+HAVRIX_0825_S                                                                                                                                                                                                                                                   Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                      
+M_M_R_II_4681_V                                                                                                                                                                                                                                                 MMR II Vial                                                                                                                                                                                                                                                    
+ENGERIX_B_0820_S                                                                                                                                                                                                                                                Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                      
+
+ 9 rows selected 
+
+SQL> --ROLLBACK
+SQL> ROLLBACK TO SAVEPOINT SQL_BYEBYE;
+
+Rollback complete.
+
+SQL> --12) Use the SQL UPDATE statement to change some data. Add select statements to demonstrate the table contents before and after the UPDATE statement. You can either COMMIT or ROLLBACK afterwards.
+SQL> --SAVEPOINT AND TABLE BEFORE:
+SQL> SAVEPOINT CUST_CHANGE;
+SAVEPOINT CUST_CHANGE
+SQL> SELECT CUST_ID,CUST_NAME FROM CUSTOMER;
+
+   CUST_ID CUST_NAME                                                                                                                                                                                                                                                     
+---------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+         1 Heal All                                                                                                                                                                                                                                                       
+         2 Dinosaurs and Associates                                                                                                                                                                                                                                       
+         3 Lighter Medical                                                                                                                                                                                                                                                
+         4 Oldies Medical Group                                                                                                                                                                                                                                           
+         5 Greatest View Medical                                                                                                                                                                                                                                          
+         6 2nd Choice Family Practice                                                                                                                                                                                                                                     
+         7 Semi Urgent Care                                                                                                                                                                                                                                               
+         8 Ironclad Medical                                                                                                                                                                                                                                               
+         9 Yellowbrick Road Village                                                                                                                                                                                                                                       
+        10 Home Sweet Home                                                                                                                                                                                                                                                
+
+ 10 rows selected 
+
+SQL> --Update Query
+SQL> UPDATE CUSTOMER 
+SET CUST_NAME = '3rd Choice Family Practice'
+WHERE CUST_NAME = '2nd Choice Family Practice';
+
+1 row updated.
+
+SQL> --Table After
+SQL> SELECT CUST_ID,CUST_NAME FROM CUSTOMER;
+
+   CUST_ID CUST_NAME                                                                                                                                                                                                                                                     
+---------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+         1 Heal All                                                                                                                                                                                                                                                       
+         2 Dinosaurs and Associates                                                                                                                                                                                                                                       
+         3 Lighter Medical                                                                                                                                                                                                                                                
+         4 Oldies Medical Group                                                                                                                                                                                                                                           
+         5 Greatest View Medical                                                                                                                                                                                                                                          
+         6 3rd Choice Family Practice                                                                                                                                                                                                                                     
+         7 Semi Urgent Care                                                                                                                                                                                                                                               
+         8 Ironclad Medical                                                                                                                                                                                                                                               
+         9 Yellowbrick Road Village                                                                                                                                                                                                                                       
+        10 Home Sweet Home                                                                                                                                                                                                                                                
+
+ 10 rows selected 
+
+SQL> --ROLLBACK
+SQL> ROLLBACK TO SAVEPOINT CUST_CHANGE;
+
+Rollback complete.
+
+SQL> --Perform 8 additional advanced (multiple table joins, sub-queries, aggregate, etc.) SQL statements.
+SQL> --Custom 1) Select all "Fluzone" inventory from all practices
+SQL> SELECT DISTINCT CUSTOMER.CUST_NAME, INVENTORY.PRODUCT_NAME, INVENTORY.QTYONHAND
+FROM INVENTORY
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = INVENTORY.ORDER_ID
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID
+WHERE INVENTORY.PRODUCT_ID = 'FLUZONE_Q_0417_V';
+
+CUST_NAME                                                                                                                                                                                                                                                       PRODUCT_NAME                                                                                                                                                                                                                                                     QTYONHAND
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+Heal All                                                                                                                                                                                                                                                        Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               9
+Dinosaurs and Associates                                                                                                                                                                                                                                        Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               7
+Greatest View Medical                                                                                                                                                                                                                                           Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               9
+
+SQL> --Custom 2) Select all inventory below the reorder point
+SQL> SELECT DISTINCT CUSTOMER.CUST_NAME, INVENTORY.PRODUCT_NAME, INVENTORY.QTYONHAND, INVENTORY.REORDER_POINT
+FROM INVENTORY
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = INVENTORY.ORDER_ID
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID
+WHERE INVENTORY.QTYONHAND < INVENTORY.REORDER_POINT;
+
+CUST_NAME                                                                                                                                                                                                                                                       PRODUCT_NAME                                                                                                                                                                                                                                                     QTYONHAND                           REORDER_POINT
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ---------------------------------------
+Dinosaurs and Associates                                                                                                                                                                                                                                        Boostrix (TdaP) Vial                                                                                                                                                                                                                                                     3                                       4
+2nd Choice Family Practice                                                                                                                                                                                                                                      Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                                5                                       7
+Dinosaurs and Associates                                                                                                                                                                                                                                        Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   1                                       4
+Ironclad Medical                                                                                                                                                                                                                                                Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   2                                       4
+
+SQL> --Custom 3) Select all orders occurring after August 2017
+SQL> SELECT CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE
+FROM ORDERS
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = ORDERS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.ORDER_ID
+GROUP BY CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE
+HAVING ORDERS.ORDER_DATE > '1-AUG-2017';
+
+CUST_NAME                                                                                                                                                                                                                                                         ORDER_ID ORDER_DATE
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ----------
+Dinosaurs and Associates                                                                                                                                                                                                                                                 2 11-DEC-17 
+Lighter Medical                                                                                                                                                                                                                                                          3 11-DEC-17 
+Oldies Medical Group                                                                                                                                                                                                                                                     4 11-DEC-17 
+2nd Choice Family Practice                                                                                                                                                                                                                                               6 11-DEC-17 
+Semi Urgent Care                                                                                                                                                                                                                                                         7 11-DEC-17 
+Yellowbrick Road Village                                                                                                                                                                                                                                                 9 11-DEC-17 
+Home Sweet Home                                                                                                                                                                                                                                                         10 11-DEC-17 
+Greatest View Medical                                                                                                                                                                                                                                                    5 11-DEC-17 
+Heal All                                                                                                                                                                                                                                                                 1 11-DEC-17 
+Ironclad Medical                                                                                                                                                                                                                                                         8 11-DEC-17 
+
+ 10 rows selected 
+
+SQL> --Custom 4) Select All Inventory manufactured by Merck
+SQL> SELECT DISTINCT CUSTOMER.CUST_NAME,PRODUCTS.MANUFACTURER,INVENTORY.PRODUCT_NAME,INVENTORY.QTYONHAND
+FROM INVENTORY
+INNER JOIN PRODUCTS ON PRODUCTS.PRODUCT_ID = INVENTORY.PRODUCT_ID
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = INVENTORY.ORDER_ID
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID
+WHERE PRODUCTS.MANUFACTURER = 'Merck';
+
+CUST_NAME                                                                                                                                                                                                                                                       MANUFACTURER                                                                                                                                                                                                                                                    PRODUCT_NAME                                                                                                                                                                                                                                                     QTYONHAND
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+Lighter Medical                                                                                                                                                                                                                                                 Merck                                                                                                                                                                                                                                                           Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   5
+Ironclad Medical                                                                                                                                                                                                                                                Merck                                                                                                                                                                                                                                                           Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   2
+Dinosaurs and Associates                                                                                                                                                                                                                                        Merck                                                                                                                                                                                                                                                           Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   1
+Ironclad Medical                                                                                                                                                                                                                                                Merck                                                                                                                                                                                                                                                           MMR II Vial                                                                                                                                                                                                                                                              9
+
+SQL> --Custom 5) Select all items with duplicate lot numbers
+SQL> SELECT DISTINCT CUSTOMER.CUST_NAME, INVENTORY.PRODUCT_NAME,INVENTORY.LOT_NUM,INVENTORY.QTYONHAND
+FROM INVENTORY
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = INVENTORY.ORDER_ID
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID
+GROUP BY CUSTOMER.CUST_NAME, INVENTORY.PRODUCT_NAME,INVENTORY.LOT_NUM,INVENTORY.QTYONHAND
+HAVING COUNT(INVENTORY.LOT_NUM) > 1
+ORDER BY INVENTORY.PRODUCT_NAME;
+
+CUST_NAME                                                                                                                                                                                                                                                       PRODUCT_NAME                                                                                                                                                                                                                                                    LOT_NUM                                                                                                                                                                                                                                                          QTYONHAND
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+Dinosaurs and Associates                                                                                                                                                                                                                                        Boostrix (TdaP) Vial                                                                                                                                                                                                                                            B741K                                                                                                                                                                                                                                                                    3
+2nd Choice Family Practice                                                                                                                                                                                                                                      Engerix-B Pediatric 10 mcg/0.5 ml Syringe                                                                                                                                                                                                                       JK19841                                                                                                                                                                                                                                                                  5
+Dinosaurs and Associates                                                                                                                                                                                                                                        Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                      AFLU424                                                                                                                                                                                                                                                                  7
+Ironclad Medical                                                                                                                                                                                                                                                Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                          HPV8349                                                                                                                                                                                                                                                                  2
+Lighter Medical                                                                                                                                                                                                                                                 Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                          HPV8349                                                                                                                                                                                                                                                                  5
+Dinosaurs and Associates                                                                                                                                                                                                                                        Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                             AJRKJL4                                                                                                                                                                                                                                                                  6
+Lighter Medical                                                                                                                                                                                                                                                 Havrix Adult 1,440 UNITS/ML Syringe                                                                                                                                                                                                                             AJRKJL4                                                                                                                                                                                                                                                                 10
+2nd Choice Family Practice                                                                                                                                                                                                                                      Havrix Pediatric 720 UNITS/0.5 ML Syringe                                                                                                                                                                                                                       AFLU424                                                                                                                                                                                                                                                                  9
+Ironclad Medical                                                                                                                                                                                                                                                MMR II Vial                                                                                                                                                                                                                                                     AFLU424                                                                                                                                                                                                                                                                  9
+
+ 9 rows selected 
+
+SQL> --Custom 6) Select Products with no inventory
+SQL> SELECT PRODUCTS.PRODUCT_ID,PRODUCTS.PRODUCT_NAME AS "Products with No Inventory"
+FROM PRODUCTS
+LEFT OUTER JOIN INVENTORY ON INVENTORY.PRODUCT_ID = PRODUCTS.PRODUCT_ID
+GROUP BY PRODUCTS.PRODUCT_ID,PRODUCTS.PRODUCT_NAME
+HAVING COUNT (INVENTORY.PRODUCT_ID) = 0;
+
+PRODUCT_ID                                                                                                                                                                                                                                                      Products with No Inventory                                                                                                                                                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+KINRIX_0812_V                                                                                                                                                                                                                                                   Kinrix (DTaP IPV) Vial                                                                                                                                                                                                                                         
+
+SQL> --Custom 7) Return all "Vial" inventory
+SQL> SELECT DISTINCT CUSTOMER.CUST_NAME,PRODUCTS.FORM,INVENTORY.PRODUCT_NAME,INVENTORY.QTYONHAND
+FROM INVENTORY
+INNER JOIN PRODUCTS ON PRODUCTS.PRODUCT_ID = INVENTORY.PRODUCT_ID
+INNER JOIN PO_CONTENTS ON PO_CONTENTS.ORDER_ID = INVENTORY.ORDER_ID
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.CUST_ID
+WHERE PRODUCTS.FORM = 'Vial';
+
+CUST_NAME                                                                                                                                                                                                                                                       FORM                                                                                                                                                                                                                                                            PRODUCT_NAME                                                                                                                                                                                                                                                     QTYONHAND
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------
+Dinosaurs and Associates                                                                                                                                                                                                                                        Vial                                                                                                                                                                                                                                                            Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               7
+Dinosaurs and Associates                                                                                                                                                                                                                                        Vial                                                                                                                                                                                                                                                            Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   1
+Ironclad Medical                                                                                                                                                                                                                                                Vial                                                                                                                                                                                                                                                            Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   2
+Dinosaurs and Associates                                                                                                                                                                                                                                        Vial                                                                                                                                                                                                                                                            Boostrix (TdaP) Vial                                                                                                                                                                                                                                                     3
+Oldies Medical Group                                                                                                                                                                                                                                            Vial                                                                                                                                                                                                                                                            Menactra (MCV4) Vial                                                                                                                                                                                                                                                     4
+Lighter Medical                                                                                                                                                                                                                                                 Vial                                                                                                                                                                                                                                                            Gardasil 9 (HPV9) Vial                                                                                                                                                                                                                                                   5
+Greatest View Medical                                                                                                                                                                                                                                           Vial                                                                                                                                                                                                                                                            Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               9
+Heal All                                                                                                                                                                                                                                                        Vial                                                                                                                                                                                                                                                            Fluzone Quadrivalent (IIV4) Vial 2017-2018                                                                                                                                                                                                                               9
+2nd Choice Family Practice                                                                                                                                                                                                                                      Vial                                                                                                                                                                                                                                                            Boostrix (TdaP) Vial                                                                                                                                                                                                                                                     9
+Ironclad Medical                                                                                                                                                                                                                                                Vial                                                                                                                                                                                                                                                            MMR II Vial                                                                                                                                                                                                                                                              9
+
+ 10 rows selected 
+
+SQL> --Custom 8) Return all Orders's with more than 1 item
+SQL> SELECT CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE,COUNT(PO_CONTENTS.VENDOR_ITEM) AS "Number of Items on Order"
+FROM PO_CONTENTS
+INNER JOIN ORDERS ON ORDERS.ORDER_ID = PO_CONTENTS.ORDER_ID
+INNER JOIN CUSTOMER ON CUSTOMER.CUST_ID = ORDERS.ORDER_ID
+GROUP BY CUSTOMER.CUST_NAME,ORDERS.ORDER_ID,ORDERS.ORDER_DATE
+HAVING COUNT(PO_CONTENTS.VENDOR_ITEM) > 1;
+
+CUST_NAME                                                                                                                                                                                                                                                         ORDER_ID ORDER_DATE                Number of Items on Order
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ---------- ---------------------------------------
+Dinosaurs and Associates                                                                                                                                                                                                                                                 2 11-DEC-17                                        3
+Lighter Medical                                                                                                                                                                                                                                                          3 11-DEC-17                                        2
+2nd Choice Family Practice                                                                                                                                                                                                                                               6 11-DEC-17                                        2
+Ironclad Medical                                                                                                                                                                                                                                                         8 11-DEC-17                                        2
+
